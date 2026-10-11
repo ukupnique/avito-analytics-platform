@@ -24,3 +24,5 @@ Thumbs.db
 
 # App data
 postgres_data/
+
+*.egg-info/
