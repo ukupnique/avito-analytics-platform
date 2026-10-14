@@ -11,8 +11,10 @@ def random_email() -> str:
     return f"user_{uuid.uuid4().hex[:8]}@test.com"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_user_and_find_by_email(random_email: str) -> None:
+    user_was_committed = False
+
     try:
         async with AsyncSessionFactory() as session:
             repository = UserRepository(session)
@@ -21,6 +23,7 @@ async def test_create_user_and_find_by_email(random_email: str) -> None:
 
             await repository.create_user(random_email, "test-hash")
             await session.commit()
+            user_was_committed = True
 
         # Новая сессия проверяет, что после commit пользователь виден в базе.
         async with AsyncSessionFactory() as session:
@@ -31,10 +34,11 @@ async def test_create_user_and_find_by_email(random_email: str) -> None:
             assert saved_user.email == random_email
             assert saved_user.password_hash == "test-hash"
     finally:
-        # Удаляем тестовые данные, даже если какая-либо проверка завершилась ошибкой.
-        async with AsyncSessionFactory() as session:
-            repository = UserRepository(session)
-            saved_user = await repository.get_user_by_email(random_email)
-            if saved_user is not None:
-                await session.delete(saved_user)
-                await session.commit()
+        if user_was_committed:
+            # Удаляем тестовые данные, даже если проверка после commit завершилась ошибкой.
+            async with AsyncSessionFactory() as session:
+                repository = UserRepository(session)
+                saved_user = await repository.get_user_by_email(random_email)
+                if saved_user is not None:
+                    await session.delete(saved_user)
+                    await session.commit()
