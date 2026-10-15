@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     postgres_db: str = "avito_analytics"
     postgres_user: str = "app"
     postgres_password: str = "app123"
-    
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

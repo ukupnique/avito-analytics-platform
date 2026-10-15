@@ -20,7 +20,24 @@ dev = [
     "pytest>=8.0.0",
     "httpx>=0.27.0",
     "pytest-asyncio",
+    "ruff",
 ]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.lint.per-file-ignores]
+# Импорт модели регистрирует таблицу в Base.metadata для Alembic.
+"**/alembic/env.py" = ["F401"]
+# Alembic добавляет стандартные импорты даже в пустые миграции.
+"**/alembic/versions/*.py" = ["F401"]
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
