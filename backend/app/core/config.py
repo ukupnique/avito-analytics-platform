@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     postgres_db: str = "avito_analytics"
     postgres_user: str = "app"
     postgres_password: str = "app123"
+    jwt_secret_key: str
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -19,4 +22,4 @@ class Settings(BaseSettings):
     )
 
 
-settings = Settings()
+settings = Settings()  # pyright: ignore[reportCallIssue]

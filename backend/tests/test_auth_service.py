@@ -17,6 +17,7 @@ def random_email() -> str:
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_register_user(random_email: str) -> None:
+    """Проверяет сохранение хеша пароля и отказ при повторной регистрации email."""
     password = uuid.uuid4().hex[:8]
     user_was_committed = False
 
@@ -49,6 +50,7 @@ async def test_register_user(random_email: str) -> None:
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_authenticate_user_success(random_email: str) -> None:
+    """Проверяет возврат UserRead с верными ID и email при успешном входе."""
     password = uuid.uuid4().hex[:8]
     user_was_committed = False
 
@@ -76,6 +78,7 @@ async def test_authenticate_user_success(random_email: str) -> None:
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_authenticate_user_wrong_password(random_email: str) -> None:
+    """Проверяет, что вход с неверным паролем возвращает None."""
     password = uuid.uuid4().hex[:8]
     wrong_password = "ololo_im_wrong_text"
     user_was_committed = False
@@ -102,6 +105,7 @@ async def test_authenticate_user_wrong_password(random_email: str) -> None:
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_authenticate_user_unknown_email(random_email: str) -> None:
+    """Проверяет, что вход с незарегистрированным email возвращает None."""
     wrong_email = random_email
 
     wrong_user = await authenticate_user(wrong_email, "password")

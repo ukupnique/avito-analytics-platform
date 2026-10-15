@@ -11,6 +11,7 @@ app = FastAPI(
 
 @app.get("/health")
 async def health() -> dict:
+    """Возвращает статус доступности API, окружение и версию приложения."""
     return {
         "status": "ok",
         "app_env": settings.app_env,
@@ -20,6 +21,7 @@ async def health() -> dict:
 
 @app.get("/")
 async def root() -> dict:
+    """Возвращает приветственное сообщение и текущее окружение приложения."""
     return {
         "message": "Avito Analytics Platform is running",
         "app_env": settings.app_env,

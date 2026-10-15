@@ -13,6 +13,7 @@ dependencies = [
     "asyncpg>=0.29.0",
     "psycopg[binary]>=3.2.0",
     "alembic>=1.14.0",
+    "PyJWT",
 ]
 
 [project.optional-dependencies]

@@ -19,10 +19,10 @@ depends_on: Union[str, Sequence[str], None] = ${repr(depends_on)}
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
+    """Применяет изменения схемы БД, описанные в этой ревизии."""
     ${upgrades if upgrades else "pass"}
 
 
 def downgrade() -> None:
-    """Downgrade schema."""
+    """Отменяет изменения схемы БД, внесённые этой ревизией."""
     ${downgrades if downgrades else "pass"}

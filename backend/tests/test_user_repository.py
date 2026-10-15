@@ -14,6 +14,7 @@ def random_email() -> str:
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_user_and_find_by_email(random_email: str) -> None:
+    """Проверяет создание пользователя и поиск по email из новой сессии после commit."""
     user_was_committed = False
 
     try:
