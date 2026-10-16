@@ -25,3 +25,27 @@ def create_access_token(user_id: int) -> str:
     )
 
     return encoded_jwt
+
+
+def get_user_id_from_token(token: str) -> int | None:
+    """Проверяет JWT и возвращает положительный ID пользователя или None."""
+
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options={"require": ["sub", "exp"]},
+        )
+
+        user_id = int(payload["sub"])
+
+        if user_id <= 0:
+            return None
+
+    except jwt.InvalidTokenError:
+        return None
+    except ValueError:
+        return None
+
+    return user_id
