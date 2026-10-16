@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.api.v1.auth import router as auth_router
 from app.core.config import settings
 
 app = FastAPI(
@@ -7,6 +8,8 @@ app = FastAPI(
     version=settings.project_version,
     debug=settings.debug,
 )
+
+app.include_router(auth_router, prefix="/api/v1")
 
 
 @app.get("/health")

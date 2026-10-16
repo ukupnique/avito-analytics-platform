@@ -3,9 +3,11 @@
 PYTHON ?= .venv/bin/python
 PYTHON_PATHS ?= backend alembic
 PYTEST_ARGS ?=
+API_HOST ?= 127.0.0.1
+API_PORT ?= 8000
 RUFF_CONFIG := backend/pyproject.toml
 
-.PHONY: help install-dev format lint up stop down test clean
+.PHONY: help install-dev format lint up stop down run test clean
 
 help:
 	@echo "make install-dev  Установить зависимости для разработки в .venv"
@@ -14,6 +16,7 @@ help:
 	@echo "make up           Запустить все сервисы Compose и дождаться их готовности"
 	@echo "make stop         Остановить контейнеры без удаления"
 	@echo "make down         Остановить и удалить контейнеры, сохранив данные БД"
+	@echo "make run          Запустить API через Gunicorn: http://$(API_HOST):$(API_PORT)/docs"
 	@echo "make test         Запустить pytest (БД должна быть запущена)"
 	@echo "make clean        Удалить генерируемые кэши и артефакты Python"
 
@@ -37,6 +40,16 @@ stop:
 # Без --volumes: данные PostgreSQL сохраняются между запусками.
 down:
 	docker compose down
+
+# Локальный запуск FastAPI через ASGI-воркер; Ctrl+C останавливает сервер.
+run:
+	@echo "Swagger UI: http://$(API_HOST):$(API_PORT)/docs"
+	DEBUG=false PYTHONPATH=backend $(PYTHON) -m gunicorn app.main:app \
+		--worker-class uvicorn_worker.UvicornWorker \
+		--bind $(API_HOST):$(API_PORT) \
+		--workers 1 \
+		--reload \
+		--access-logfile -
 
 test:
 	DEBUG=false PYTHONPATH=backend $(PYTHON) -m pytest -q $(PYTEST_ARGS)
