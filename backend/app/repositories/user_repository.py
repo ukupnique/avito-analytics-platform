@@ -22,3 +22,8 @@ class UserRepository:
         user = User(email=email, password_hash=password_hash)
         self.session.add(user)
         return user
+
+    async def get_user_by_id(self, user_id: int) -> User | None:
+        """Возвращает пользователя по ID или None, если он не найден."""
+        result = await self.session.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()
