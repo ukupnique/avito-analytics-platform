@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.api.dependencies import get_current_user
 from app.core.tokens import create_access_token
 from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.user import UserRead
 from app.services.auth_service import authenticate_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -23,3 +25,11 @@ async def login(data: LoginRequest) -> TokenResponse:
     token = create_access_token(user_id=user.id)
 
     return TokenResponse(access_token=token)
+
+
+@router.get("/me", response_model=UserRead)
+async def read_current_user(
+    current_user: UserRead = Depends(get_current_user),
+) -> UserRead:
+    """Возвращает данные текущего пользователя после проверки JWT."""
+    return current_user

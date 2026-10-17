@@ -1,10 +1,14 @@
 import uuid
+from datetime import datetime, timedelta, timezone
+from secrets import token_hex
 
+import jwt
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.core.config import settings
 from app.core.database import AsyncSessionFactory
-from app.core.tokens import get_user_id_from_token
+from app.core.tokens import create_access_token, get_user_id_from_token
 from app.main import app
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import register_user
@@ -105,6 +109,7 @@ async def test_login_wrong_email(random_email: str) -> None:
         assert response.json()["detail"] == "Неверный email или пароль"
         assert "access_token" not in response.json()
 
+
 @pytest.mark.asyncio(loop_scope="session")
 async def test_incorrect_email() -> None:
     """Проверяет, что вход с некорректным email возвращает HTTP 422."""
@@ -118,3 +123,226 @@ async def test_incorrect_email() -> None:
             json={"email": "not_a_email", "password": "password123"},
         )
         assert response.status_code == 422
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_me_success(random_email: str) -> None:
+    """Проверяет получение данных текущего пользователя по корректному JWT."""
+    password = uuid.uuid4().hex
+    user_was_committed = False
+
+    try:
+        user = await register_user(random_email, password)
+        user_was_committed = user is not None
+
+        assert user is not None
+
+        token = create_access_token(user.id)
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            response = await client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        assert response.status_code == 200
+
+        assert response.json() == {
+            "id": user.id,
+            "email": user.email,
+        }
+
+    finally:
+        if user_was_committed:
+            async with AsyncSessionFactory() as session:
+                repository = UserRepository(session)
+                saved_user = await repository.get_user_by_email(random_email)
+                if saved_user is not None:
+                    await session.delete(saved_user)
+                    await session.commit()
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_no_token() -> None:
+    """Проверяет HTTP 401 и Bearer-заголовок при запросе /me без токена."""
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.get(
+            "/api/v1/auth/me",
+        )
+
+    assert response.status_code == 401
+    assert response.headers["WWW-Authenticate"] == "Bearer"
+    assert response.json() == {
+        "detail": "Не удалось проверить учётные данные",
+    }
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_me_invalid_token() -> None:
+    """Проверяет HTTP 401 и Bearer-заголовок при запросе /me с битым токеном."""
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": "Bearer ololoolo"},
+        )
+
+    assert response.status_code == 401
+    assert response.headers["WWW-Authenticate"] == "Bearer"
+    assert response.json() == {
+        "detail": "Не удалось проверить учётные данные",
+    }
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_me_expired_token(random_email: str) -> None:
+    """Проверяет HTTP 401 при запросе /me с просроченным JWT."""
+    password = uuid.uuid4().hex
+    user_was_committed = False
+
+    try:
+        user = await register_user(random_email, password)
+        user_was_committed = user is not None
+
+        assert user is not None
+
+        payload = {
+            "sub": str(user.id),
+            "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
+        }
+        token = jwt.encode(
+            payload,
+            settings.jwt_secret_key,
+            algorithm=settings.jwt_algorithm,
+        )
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            response = await client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        assert response.status_code == 401
+        assert response.headers["WWW-Authenticate"] == "Bearer"
+        assert response.json() == {
+            "detail": "Не удалось проверить учётные данные",
+        }
+    finally:
+        if user_was_committed:
+            async with AsyncSessionFactory() as session:
+                repository = UserRepository(session)
+                saved_user = await repository.get_user_by_email(random_email)
+                if saved_user is not None:
+                    await session.delete(saved_user)
+                    await session.commit()
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_me_invalid_signature(random_email: str) -> None:
+    """Проверяет HTTP 401 при запросе /me с JWT, подписанным другим ключом."""
+    password = uuid.uuid4().hex
+    user_was_committed = False
+
+    try:
+        user = await register_user(random_email, password)
+        user_was_committed = user is not None
+
+        assert user is not None
+
+        payload = {
+            "sub": str(user.id),
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+        }
+        wrong_key = token_hex(32)
+        token = jwt.encode(
+            payload,
+            wrong_key,
+            algorithm=settings.jwt_algorithm,
+        )
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            response = await client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        assert response.status_code == 401
+        assert response.headers["WWW-Authenticate"] == "Bearer"
+        assert response.json() == {
+            "detail": "Не удалось проверить учётные данные",
+        }
+    finally:
+        if user_was_committed:
+            async with AsyncSessionFactory() as session:
+                repository = UserRepository(session)
+                saved_user = await repository.get_user_by_email(random_email)
+                if saved_user is not None:
+                    await session.delete(saved_user)
+                    await session.commit()
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_me_deleted_user(random_email: str) -> None:
+    """Проверяет HTTP 401 при запросе /me с JWT у удаленного пользователя."""
+    password = uuid.uuid4().hex
+    user_was_committed = False
+
+    try:
+        user = await register_user(random_email, password)
+        user_was_committed = user is not None
+
+        assert user is not None
+
+        payload = {
+            "sub": str(user.id),
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+        }
+        token = jwt.encode(
+            payload,
+            settings.jwt_secret_key,
+            algorithm=settings.jwt_algorithm,
+        )
+        async with AsyncSessionFactory() as session:
+            repository = UserRepository(session)
+            saved_user = await repository.get_user_by_email(random_email)
+            await session.delete(saved_user)
+            await session.commit()
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            response = await client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        assert response.status_code == 401
+        assert response.headers["WWW-Authenticate"] == "Bearer"
+        assert response.json() == {
+            "detail": "Не удалось проверить учётные данные",
+        }
+    finally:
+        if user_was_committed:
+            async with AsyncSessionFactory() as session:
+                repository = UserRepository(session)
+                saved_user = await repository.get_user_by_email(random_email)
+                if saved_user is not None:
+                    await session.delete(saved_user)
+                    await session.commit()
