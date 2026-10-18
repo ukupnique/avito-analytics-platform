@@ -346,3 +346,115 @@ async def test_me_deleted_user(random_email: str) -> None:
                 if saved_user is not None:
                     await session.delete(saved_user)
                     await session.commit()
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_register_success(random_email: str) -> None:
+    """Проверяет успешную регистрацию через API и возврат HTTP 201."""
+
+    email = random_email
+    password = uuid.uuid4().hex[:8]
+    user_was_committed = False
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/api/v1/auth/register",
+                json={"email": email, "password": password},
+            )
+            user_was_committed = True
+            assert response.status_code == 201
+        async with AsyncSessionFactory() as session:
+            repository = UserRepository(session)
+            saved_user = await repository.get_user_by_email(email)
+
+            assert saved_user is not None
+            assert response.json() == {
+                "id": saved_user.id,
+                "email": email,
+            }
+
+    finally:
+        if user_was_committed:
+            async with AsyncSessionFactory() as session:
+                repository = UserRepository(session)
+                saved_user = await repository.get_user_by_email(random_email)
+                if saved_user is not None:
+                    await session.delete(saved_user)
+                    await session.commit()
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_register_duplicate_email(random_email: str) -> None:
+    """Проверяет повторную регистрацию по email и возврат HTTP 409."""
+
+    email = random_email
+    password = uuid.uuid4().hex[:8]
+    user_was_committed = False
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/api/v1/auth/register",
+                json={"email": email, "password": password},
+            )
+            user_was_committed = True
+            assert response.status_code == 201
+        async with AsyncSessionFactory() as session:
+            repository = UserRepository(session)
+            saved_user = await repository.get_user_by_email(email)
+
+            assert saved_user is not None
+            assert response.json() == {
+                "id": saved_user.id,
+                "email": email,
+            }
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/api/v1/auth/register",
+                json={"email": email, "password": password},
+            )
+            assert response.status_code == 409
+            assert response.json() == {
+                "detail": "Пользователь с таким email уже существует",
+            }
+    finally:
+        if user_was_committed:
+            async with AsyncSessionFactory() as session:
+                repository = UserRepository(session)
+                saved_user = await repository.get_user_by_email(random_email)
+                if saved_user is not None:
+                    await session.delete(saved_user)
+                    await session.commit()
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"email": "abc", "password": "password123"},  # Неверный email.
+        {"password": "password123"},  # Отсутствует email.
+        {"email": "user@example.com"},  # Отсутствует пароль.
+    ],
+)
+@pytest.mark.asyncio(loop_scope="session")
+async def test_register_invalid_data(data: dict[str, str]) -> None:
+    """Проверяет HTTP 422 при некорректных данных регистрации."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/api/v1/auth/register",
+            json=data,
+        )
+        assert response.status_code == 422
