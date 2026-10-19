@@ -25,3 +25,18 @@ class AuthSessionRepository:
             select(AuthSession).where(AuthSession.id == session_id)
         )
         return result.scalar_one_or_none()
+
+    async def revoke_session(
+        self, session_id: UUID, revoked_at: datetime
+    ) -> AuthSession | None:
+        """Отзывает сессию, сохраняя время первого отзыва.
+
+        Возвращает None, если сессия не найдена; commit выполняет вызывающий код.
+        """
+        auth_session = await self.get_session_by_id(session_id=session_id)
+        if auth_session is None:
+            return None
+        if auth_session.revoked_at is None:
+            auth_session.revoked_at = revoked_at
+        await self.session.flush()
+        return auth_session
