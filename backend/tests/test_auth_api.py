@@ -441,9 +441,9 @@ async def test_register_duplicate_email(random_email: str) -> None:
 @pytest.mark.parametrize(
     "data",
     [
-        {"email": "abc", "password": "password123"},  # Неверный email.
-        {"password": "password123"},  # Отсутствует email.
-        {"email": "user@example.com"},  # Отсутствует пароль.
+        {"email": "abc", "password": "password123"},
+        {"password": "password123"},
+        {"email": "user@example.com"},
     ],
 )
 @pytest.mark.asyncio(loop_scope="session")
