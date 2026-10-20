@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -49,3 +51,15 @@ def get_user_id_from_token(token: str) -> int | None:
         return None
 
     return user_id
+
+
+def generate_refresh_token() -> str:
+    """Создаёт секретный URL-безопасный refresh-токен из 32 случайных байтов."""
+    refresh_token = secrets.token_urlsafe(32)
+    return refresh_token
+
+
+def hash_refresh_token(token: str) -> str:
+    """Возвращает SHA-256-хеш переданного refresh-токена в виде hex-строки."""
+    hashed_token = hashlib.sha256(token.encode("utf-8"))
+    return hashed_token.hexdigest()

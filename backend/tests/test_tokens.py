@@ -6,7 +6,12 @@ import jwt
 import pytest
 
 from app.core.config import settings
-from app.core.tokens import create_access_token, get_user_id_from_token
+from app.core.tokens import (
+    create_access_token,
+    generate_refresh_token,
+    get_user_id_from_token,
+    hash_refresh_token,
+)
 
 
 def test_create_access_token_contains_user_id_and_expiration() -> None:
@@ -129,3 +134,32 @@ def test_get_user_id_from_token_disallowed_algorithm() -> None:
     )
 
     assert get_user_id_from_token(encoded_jwt) is None
+
+
+def test_generate_refresh_token_returns_unique_strings() -> None:
+    """Проверяет, что генератор возвращает разные непустые строки."""
+    first_token = generate_refresh_token()
+    second_token = generate_refresh_token()
+
+    assert isinstance(first_token, str)
+    assert isinstance(second_token, str)
+    assert first_token
+    assert second_token
+    assert first_token != second_token
+
+
+def test_hash_refresh_token_is_repeatable() -> None:
+    """Проверяет одинаковый хеш при повторном хешировании одного токена."""
+    token = "example-refresh-token"
+
+    first_hash = hash_refresh_token(token)
+    second_hash = hash_refresh_token(token)
+
+    assert first_hash == second_hash
+
+
+def test_hash_refresh_token_known_value() -> None:
+    """Проверяет SHA-256 переданной строки по заранее известному значению."""
+    expected_hash = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+
+    assert hash_refresh_token("abc") == expected_hash
