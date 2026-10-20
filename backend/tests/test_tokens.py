@@ -1,6 +1,7 @@
 import time
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
+from uuid import uuid4
 
 import jwt
 import pytest
@@ -14,10 +15,11 @@ from app.core.tokens import (
 )
 
 
-def test_create_access_token_contains_user_id_and_expiration() -> None:
-    """Проверяет ID пользователя и настроенный срок действия JWT."""
+def test_create_access_token_contains_user_id_session_id_and_expiration() -> None:
+    """Проверяет ID пользователя, ID сессии и настроенный срок действия JWT."""
+    session_id = uuid4()
     before = int(time.time())
-    token = create_access_token(user_id=112)
+    token = create_access_token(user_id=112, session_id=session_id)
     after = int(time.time())
 
     assert isinstance(token, str)
@@ -30,6 +32,7 @@ def test_create_access_token_contains_user_id_and_expiration() -> None:
     )
 
     assert payload["sub"] == "112"
+    assert payload["sid"] == str(session_id)
 
     ttl_seconds = settings.access_token_expire_minutes * 60
 
@@ -53,7 +56,7 @@ def test_get_user_id_from_token_expired() -> None:
 
 def test_get_user_id_from_token_success() -> None:
     """Проверяет возврат целочисленного ID пользователя из действительного JWT."""
-    token = create_access_token(user_id=112)
+    token = create_access_token(user_id=112, session_id=uuid4())
 
     user_id = get_user_id_from_token(token=token)
 

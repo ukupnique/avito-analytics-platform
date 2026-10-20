@@ -8,7 +8,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.core.config import settings
 from app.core.database import AsyncSessionFactory
-from app.core.tokens import create_access_token, get_user_id_from_token
+from app.core.tokens import get_user_id_from_token
 from app.main import app
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import register_user
@@ -22,7 +22,7 @@ def random_email() -> str:
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_login_success(random_email: str) -> None:
-    """Проверяет успешный вход и получение JWT с ID пользователя."""
+    """Проверяет успешный вход и ответ с парой токенов и типом bearer."""
     email = random_email
     password = uuid.uuid4().hex[:8]
     user_was_committed = False
@@ -42,11 +42,15 @@ async def test_login_success(random_email: str) -> None:
                 json={"email": email, "password": password},
             )
             assert response.status_code == 200
-            assert response.json()["token_type"] == "bearer"
-            access_token = response.json()["access_token"]
+            data = response.json()
+            assert set(data) == {"access_token", "refresh_token", "token_type"}
+            assert data["token_type"] == "bearer"
+            access_token = data["access_token"]
             assert isinstance(access_token, str)
             assert access_token
             assert get_user_id_from_token(access_token) == user.id
+            assert isinstance(data["refresh_token"], str)
+            assert data["refresh_token"]
 
     finally:
         if user_was_committed:
@@ -82,6 +86,7 @@ async def test_login_wrong_password(random_email: str) -> None:
             assert response.status_code == 401
             assert response.json()["detail"] == "Неверный email или пароль"
             assert "access_token" not in response.json()
+            assert "refresh_token" not in response.json()
 
     finally:
         if user_was_committed:
@@ -108,6 +113,7 @@ async def test_login_wrong_email(random_email: str) -> None:
         assert response.status_code == 401
         assert response.json()["detail"] == "Неверный email или пароль"
         assert "access_token" not in response.json()
+        assert "refresh_token" not in response.json()
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -127,7 +133,7 @@ async def test_incorrect_email() -> None:
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_me_success(random_email: str) -> None:
-    """Проверяет получение данных текущего пользователя по корректному JWT."""
+    """Проверяет получение /me по access-токену, выданному через /login."""
     password = uuid.uuid4().hex
     user_was_committed = False
 
@@ -137,12 +143,17 @@ async def test_me_success(random_email: str) -> None:
 
         assert user is not None
 
-        token = create_access_token(user.id)
-
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
+            login_response = await client.post(
+                "/api/v1/auth/login",
+                json={"email": random_email, "password": password},
+            )
+            assert login_response.status_code == 200
+            token = login_response.json()["access_token"]
+
             response = await client.get(
                 "/api/v1/auth/me",
                 headers={"Authorization": f"Bearer {token}"},

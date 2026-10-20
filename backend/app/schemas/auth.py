@@ -15,3 +15,9 @@ class TokenResponse(BaseModel):
 
     access_token: str
     token_type: Literal["bearer"] = "bearer"
+
+
+class TokenPairResponse(TokenResponse):
+    """Ответ с access-токеном, refresh-токеном и типом токена."""
+
+    refresh_token: str

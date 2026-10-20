@@ -1,30 +1,27 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.dependencies import get_current_user
-from app.core.tokens import create_access_token
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import LoginRequest, TokenPairResponse
 from app.schemas.user import UserCreate, UserRead
-from app.services.auth_service import authenticate_user, register_user
+from app.services.auth_service import login_user, register_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/login", response_model=TokenResponse)
-async def login(data: LoginRequest) -> TokenResponse:
-    """Проверяет email и пароль и возвращает JWT при успешном входе.
+@router.post("/login", response_model=TokenPairResponse)
+async def login(data: LoginRequest) -> TokenPairResponse:
+    """Возвращает access- и refresh-токены после проверки email и пароля.
 
     Если учётные данные неверны, завершает запрос с HTTP 401.
     """
-    user = await authenticate_user(email=data.email, password=data.password)
+    tokens = await login_user(email=data.email, password=data.password)
 
-    if user is None:
+    if tokens is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный email или пароль"
         )
 
-    token = create_access_token(user_id=user.id)
-
-    return TokenResponse(access_token=token)
+    return tokens
 
 
 @router.get("/me", response_model=UserRead)

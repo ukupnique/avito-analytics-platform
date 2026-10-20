@@ -1,16 +1,18 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 import jwt
 
 from app.core.config import settings
 
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: int, session_id: UUID) -> str:
     """Создаёт и возвращает подписанный JWT для указанного пользователя.
 
-    Записывает ID пользователя строкой в sub и срок действия в UTC в exp.
+    Записывает ID пользователя строкой в sub, ID сессии строкой в sid
+    и срок действия в UTC в exp.
     Ключ, алгоритм подписи и время жизни токена берёт из settings.
     """
     current_time = datetime.now(timezone.utc)
@@ -19,6 +21,7 @@ def create_access_token(user_id: int) -> str:
     payload = {
         "sub": str(user_id),
         "exp": expires_at,
+        "sid": str(session_id),
     }
     encoded_jwt = jwt.encode(
         payload,
