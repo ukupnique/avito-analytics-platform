@@ -1,7 +1,7 @@
 import time
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import jwt
 import pytest
@@ -10,9 +10,10 @@ from app.core.config import settings
 from app.core.tokens import (
     create_access_token,
     generate_refresh_token,
-    get_user_id_from_token,
+    get_access_token_data,
     hash_refresh_token,
 )
+from app.schemas.auth import AccessTokenData
 
 
 def test_create_access_token_contains_user_id_session_id_and_expiration() -> None:
@@ -39,10 +40,11 @@ def test_create_access_token_contains_user_id_session_id_and_expiration() -> Non
     assert before + ttl_seconds <= payload["exp"] <= after + ttl_seconds
 
 
-def test_get_user_id_from_token_expired() -> None:
+def test_get_access_token_data_expired() -> None:
     """Проверяет, что токен с истёкшим сроком действия возвращает None."""
     payload = {
         "sub": "112",
+        "sid": str(uuid4()),
         "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
     }
     encoded_jwt = jwt.encode(
@@ -51,22 +53,27 @@ def test_get_user_id_from_token_expired() -> None:
         algorithm=settings.jwt_algorithm,
     )
 
-    assert get_user_id_from_token(encoded_jwt) is None
+    assert get_access_token_data(encoded_jwt) is None
 
 
-def test_get_user_id_from_token_success() -> None:
-    """Проверяет возврат целочисленного ID пользователя из действительного JWT."""
-    token = create_access_token(user_id=112, session_id=uuid4())
+def test_get_access_token_data_success() -> None:
+    """Проверяет возврат AccessTokenData с ID пользователя и UUID сессии."""
+    session_id = uuid4()
+    token = create_access_token(user_id=112, session_id=session_id)
 
-    user_id = get_user_id_from_token(token=token)
+    token_data = get_access_token_data(token=token)
 
-    assert user_id == 112
+    assert isinstance(token_data, AccessTokenData)
+    assert token_data.user_id == 112
+    assert isinstance(token_data.session_id, UUID)
+    assert token_data.session_id == session_id
 
 
-def test_get_user_id_from_token_invalid_signature() -> None:
+def test_get_access_token_data_invalid_signature() -> None:
     """Проверяет отказ для непросроченного токена, подписанного другим ключом."""
     payload = {
         "sub": "112",
+        "sid": str(uuid4()),
         "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
     }
     wrong_key = token_hex(32)
@@ -77,22 +84,23 @@ def test_get_user_id_from_token_invalid_signature() -> None:
         algorithm=settings.jwt_algorithm,
     )
 
-    assert get_user_id_from_token(encoded_jwt) is None
+    assert get_access_token_data(encoded_jwt) is None
 
 
-def test_get_user_id_from_token_malformed() -> None:
+def test_get_access_token_data_malformed() -> None:
     """Проверяет возврат None для строки, не являющейся JWT."""
-    assert get_user_id_from_token("not_a_token") is None
+    assert get_access_token_data("not_a_token") is None
 
 
-@pytest.mark.parametrize("missing_claim", ["sub", "exp"])
-def test_get_user_id_from_token_missing_required_claim(
+@pytest.mark.parametrize("missing_claim", ["sub", "sid", "exp"])
+def test_get_access_token_data_missing_required_claim(
     missing_claim: str,
 ) -> None:
-    """Проверяет отказ для подписанного токена без обязательного поля sub или exp."""
+    """Проверяет отказ без одного из обязательных полей sub, sid или exp."""
     payload = {
         "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
         "sub": "112",
+        "sid": str(uuid4()),
     }
 
     payload.pop(missing_claim)
@@ -103,15 +111,16 @@ def test_get_user_id_from_token_missing_required_claim(
         algorithm=settings.jwt_algorithm,
     )
 
-    assert get_user_id_from_token(encoded_jwt) is None
+    assert get_access_token_data(encoded_jwt) is None
 
 
 @pytest.mark.parametrize("sub", ["abc", "0", "-1"])
-def test_get_user_id_from_token_invalid_sub(sub: str) -> None:
+def test_get_access_token_data_invalid_sub(sub: str) -> None:
     """Проверяет отказ для нечислового или неположительного ID."""
     payload = {
         "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
         "sub": sub,
+        "sid": str(uuid4()),
     }
 
     encoded_jwt = jwt.encode(
@@ -120,14 +129,32 @@ def test_get_user_id_from_token_invalid_sub(sub: str) -> None:
         algorithm=settings.jwt_algorithm,
     )
 
-    assert get_user_id_from_token(encoded_jwt) is None
+    assert get_access_token_data(encoded_jwt) is None
 
 
-def test_get_user_id_from_token_disallowed_algorithm() -> None:
+@pytest.mark.parametrize("sid", ["not-a-uuid", 123, None])
+def test_get_access_token_data_invalid_sid(sid: str | int | None) -> None:
+    """Проверяет возврат None при некорректном UUID или типе поля sid."""
+    payload = {
+        "sub": "112",
+        "sid": sid,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
+    }
+    token = jwt.encode(
+        payload,
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
+
+    assert get_access_token_data(token) is None
+
+
+def test_get_access_token_data_disallowed_algorithm() -> None:
     """Проверяет отказ для токена с неразрешённым алгоритмом подписи."""
     payload = {
         "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
         "sub": "112",
+        "sid": str(uuid4()),
     }
 
     encoded_jwt = jwt.encode(
@@ -136,7 +163,7 @@ def test_get_user_id_from_token_disallowed_algorithm() -> None:
         algorithm="HS384",
     )
 
-    assert get_user_id_from_token(encoded_jwt) is None
+    assert get_access_token_data(encoded_jwt) is None
 
 
 def test_generate_refresh_token_returns_unique_strings() -> None:

@@ -8,10 +8,10 @@ from httpx import ASGITransport, AsyncClient
 
 from app.core.config import settings
 from app.core.database import AsyncSessionFactory
-from app.core.tokens import get_user_id_from_token
+from app.core.tokens import get_access_token_data
 from app.main import app
 from app.repositories.user_repository import UserRepository
-from app.services.auth_service import register_user
+from app.services.auth_service import login_user, register_user
 
 
 @pytest.fixture
@@ -48,7 +48,9 @@ async def test_login_success(random_email: str) -> None:
             access_token = data["access_token"]
             assert isinstance(access_token, str)
             assert access_token
-            assert get_user_id_from_token(access_token) == user.id
+            token_data = get_access_token_data(access_token)
+            assert token_data is not None
+            assert token_data.user_id == user.id
             assert isinstance(data["refresh_token"], str)
             assert data["refresh_token"]
 
@@ -227,8 +229,14 @@ async def test_me_expired_token(random_email: str) -> None:
 
         assert user is not None
 
+        tokens = await login_user(random_email, password)
+        assert tokens is not None
+        token_data = get_access_token_data(tokens.access_token)
+        assert token_data is not None
+
         payload = {
             "sub": str(user.id),
+            "sid": str(token_data.session_id),
             "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
         }
         token = jwt.encode(
@@ -273,8 +281,14 @@ async def test_me_invalid_signature(random_email: str) -> None:
 
         assert user is not None
 
+        tokens = await login_user(random_email, password)
+        assert tokens is not None
+        token_data = get_access_token_data(tokens.access_token)
+        assert token_data is not None
+
         payload = {
             "sub": str(user.id),
+            "sid": str(token_data.session_id),
             "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
         }
         wrong_key = token_hex(32)
@@ -320,18 +334,13 @@ async def test_me_deleted_user(random_email: str) -> None:
 
         assert user is not None
 
-        payload = {
-            "sub": str(user.id),
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
-        }
-        token = jwt.encode(
-            payload,
-            settings.jwt_secret_key,
-            algorithm=settings.jwt_algorithm,
-        )
+        tokens = await login_user(random_email, password)
+        assert tokens is not None
+        token = tokens.access_token
         async with AsyncSessionFactory() as session:
             repository = UserRepository(session)
             saved_user = await repository.get_user_by_email(random_email)
+            assert saved_user is not None
             await session.delete(saved_user)
             await session.commit()
 

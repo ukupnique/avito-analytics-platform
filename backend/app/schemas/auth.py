@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, EmailStr
 
@@ -19,5 +20,18 @@ class TokenResponse(BaseModel):
 
 class TokenPairResponse(TokenResponse):
     """Ответ с access-токеном, refresh-токеном и типом токена."""
+
+    refresh_token: str
+
+
+class AccessTokenData(BaseModel):
+    """Данные пользователя и сессии из проверенного access-токена."""
+
+    user_id: int
+    session_id: UUID
+
+
+class RefreshRequest(BaseModel):
+    """Запрос на обновление пары токенов по refresh-токену."""
 
     refresh_token: str

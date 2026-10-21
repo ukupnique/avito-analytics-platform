@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.dependencies import get_current_user
-from app.schemas.auth import LoginRequest, TokenPairResponse
+from app.schemas.auth import LoginRequest, RefreshRequest, TokenPairResponse
 from app.schemas.user import UserCreate, UserRead
-from app.services.auth_service import login_user, register_user
+from app.services.auth_service import login_user, refresh_tokens, register_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -46,3 +46,21 @@ async def register(data: UserCreate) -> UserRead:
             detail="Пользователь с таким email уже существует",
         )
     return user
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenPairResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def refresh(data: RefreshRequest) -> TokenPairResponse:
+    """Обновляет пару токенов или завершает запрос с HTTP 401."""
+    tokens = await refresh_tokens(refresh_token=data.refresh_token)
+
+    if tokens is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Не удалось обновить токены",
+        )
+
+    return tokens

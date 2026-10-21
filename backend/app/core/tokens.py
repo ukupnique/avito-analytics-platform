@@ -6,6 +6,7 @@ from uuid import UUID
 import jwt
 
 from app.core.config import settings
+from app.schemas.auth import AccessTokenData
 
 
 def create_access_token(user_id: int, session_id: UUID) -> str:
@@ -32,15 +33,18 @@ def create_access_token(user_id: int, session_id: UUID) -> str:
     return encoded_jwt
 
 
-def get_user_id_from_token(token: str) -> int | None:
-    """Проверяет JWT и возвращает положительный ID пользователя или None."""
+def get_access_token_data(token: str) -> AccessTokenData | None:
+    """Проверяет access JWT и возвращает данные пользователя и сессии.
+
+    Возвращает None при неверной подписи, истёкшем сроке или некорректных данных.
+    """
 
     try:
         payload = jwt.decode(
             token,
             settings.jwt_secret_key,
             algorithms=[settings.jwt_algorithm],
-            options={"require": ["sub", "exp"]},
+            options={"require": ["sub", "exp", "sid"]},
         )
 
         user_id = int(payload["sub"])
@@ -48,12 +52,21 @@ def get_user_id_from_token(token: str) -> int | None:
         if user_id <= 0:
             return None
 
+        session_id = payload["sid"]
+
+        session_data = {
+            "user_id": user_id,
+            "session_id": session_id,
+        }
+
+        token_data = AccessTokenData.model_validate(session_data)
+
     except jwt.InvalidTokenError:
         return None
     except ValueError:
         return None
 
-    return user_id
+    return token_data
 
 
 def generate_refresh_token() -> str:

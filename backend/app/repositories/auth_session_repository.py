@@ -19,11 +19,19 @@ class AuthSessionRepository:
         await self.session.flush()
         return auth_session
 
-    async def get_session_by_id(self, session_id: UUID) -> AuthSession | None:
-        """Возвращает сессию авторизации по ID или None, если она не найдена."""
-        result = await self.session.execute(
-            select(AuthSession).where(AuthSession.id == session_id)
-        )
+    async def get_session_by_id(
+        self, session_id: UUID, for_update: bool = False
+    ) -> AuthSession | None:
+        """Возвращает сессию авторизации по ID или None, если она не найдена.
+
+        При for_update=True блокирует строку до завершения транзакции.
+        Фиксацией или откатом транзакции управляет вызывающий код.
+        """
+        statement = select(AuthSession).where(AuthSession.id == session_id)
+        if for_update:
+            statement = statement.with_for_update()
+
+        result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
     async def revoke_session(
