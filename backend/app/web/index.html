@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7f6">
+    <meta name="description" content="Личный кабинет Avito Analytics: вход и регистрация.">
+    <title>Личный кабинет — Avito Analytics</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/mark.svg">
+    <link rel="stylesheet" href="/assets/styles.css">
+    <script type="module" src="/assets/app.js"></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="header">
+        <div class="brand" aria-label="Avito Analytics">
+          <img src="/assets/mark.svg" width="40" height="40" alt="">
+          <span>Avito<span class="brand-light">Analytics</span></span>
+        </div>
+        <span id="header-caption" class="header-caption">Личный кабинет</span>
+        <button id="logout-button" class="button button-secondary" type="button" hidden>
+          Выйти из аккаунта
+        </button>
+      </header>
+
+      <main>
+        <section id="loading-view" class="loading-view" aria-live="polite">
+          <span class="spinner" aria-hidden="true"></span>
+          <p>Открываем личный кабинет…</p>
+        </section>
+
+        <section id="auth-view" class="auth-view" aria-labelledby="auth-title" hidden>
+          <div class="auth-intro">
+            <span class="eyebrow">ВАШЕ РАБОЧЕЕ ПРОСТРАНСТВО</span>
+            <h1 id="auth-title">Рады видеть вас</h1>
+            <p id="auth-description">Войдите в аккаунт, чтобы продолжить.</p>
+          </div>
+
+          <div class="auth-card">
+            <div class="auth-tabs" role="tablist" aria-label="Вход или регистрация">
+              <button id="login-tab" class="auth-tab" type="button" role="tab"
+                aria-selected="true" aria-controls="auth-panel" data-mode="login">Вход</button>
+              <button id="register-tab" class="auth-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="auth-panel" tabindex="-1"
+                data-mode="register">Регистрация</button>
+            </div>
+
+            <div id="auth-panel" role="tabpanel" aria-labelledby="login-tab">
+              <div id="form-message" class="message" role="alert" hidden></div>
+
+              <form id="auth-form" method="post">
+                <div class="field">
+                  <label for="email">Электронная почта</label>
+                  <input id="email" name="email" type="email" inputmode="email"
+                    autocomplete="username" autocapitalize="none" spellcheck="false"
+                    placeholder="you@example.com" required>
+                </div>
+
+                <div class="field">
+                  <label for="password">Пароль</label>
+                  <div class="password-field">
+                    <input id="password" name="password" type="password"
+                      autocomplete="current-password" placeholder="Введите пароль" required>
+                    <button id="password-toggle" class="password-toggle" type="button"
+                      aria-label="Показать пароль" aria-pressed="false">Показать</button>
+                  </div>
+                </div>
+
+                <div id="confirmation-field" class="field" hidden>
+                  <label for="password-confirmation">Повторите пароль</label>
+                  <input id="password-confirmation" name="password_confirmation"
+                    type="password" autocomplete="new-password" placeholder="Ещё раз тот же пароль">
+                </div>
+
+                <button id="submit-button" class="button button-primary" type="submit">
+                  <span id="submit-label">Войти в аккаунт</span>
+                  <svg class="button-arrow" width="18" height="18" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </form>
+            </div>
+
+            <div class="card-note">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                <rect x="5" y="10" width="14" height="11" rx="3"/>
+                <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" stroke-linecap="round"/>
+              </svg>
+              <span>Ваше личное пространство</span>
+            </div>
+          </div>
+          <p class="auth-footnote">Всё необходимое начинается с одного аккаунта.</p>
+        </section>
+
+        <section id="welcome-view" class="welcome-view" aria-labelledby="welcome-title" hidden>
+          <div id="welcome-message" class="message" role="alert" hidden></div>
+          <div class="welcome-card">
+            <div class="welcome-decoration" aria-hidden="true"></div>
+            <span class="status-badge"><span class="status-dot"></span>Вы в системе</span>
+            <div id="user-avatar" class="user-avatar" aria-hidden="true"></div>
+            <h1 id="welcome-title" tabindex="-1">Добро пожаловать!</h1>
+            <p class="welcome-description">Рады видеть вас в Avito Analytics.<br>Хорошего и продуктивного дня.</p>
+            <div class="account-card">
+              <span class="account-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.6">
+                  <rect x="3" y="5" width="18" height="14" rx="3"/>
+                  <path d="m4 7 8 6 8-6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <div class="account-details">
+                <span class="account-label">Вы вошли как</span>
+                <span id="user-email" class="account-email"></span>
+              </div>
+              <svg class="account-check" width="22" height="22" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="1.8" aria-label="Вход выполнен" role="img">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="m8 12 3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </div>
+        </section>
+
+        <noscript><p class="message">Для входа в личный кабинет включите JavaScript в браузере.</p></noscript>
+      </main>
+
+      <footer class="footer"><span>Avito Analytics</span><span>Личный кабинет</span></footer>
+    </div>
+  </body>
+</html>

@@ -3,7 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.dependencies import get_current_user
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenPairResponse
 from app.schemas.user import UserCreate, UserRead
-from app.services.auth_service import login_user, refresh_tokens, register_user
+from app.services.auth_service import (
+    login_user,
+    logout_user,
+    refresh_tokens,
+    register_user,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -64,3 +69,9 @@ async def refresh(data: RefreshRequest) -> TokenPairResponse:
         )
 
     return tokens
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(data: RefreshRequest) -> None:
+    """Отзывает сессию авторизации по переданному refresh-токену."""
+    await logout_user(refresh_token=data.refresh_token)

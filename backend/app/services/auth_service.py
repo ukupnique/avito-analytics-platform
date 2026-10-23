@@ -157,3 +157,28 @@ async def refresh_tokens(refresh_token: str) -> TokenPairResponse | None:
         await session.commit()
 
     return response
+
+
+async def logout_user(refresh_token: str) -> None:
+    """Отзывает сессию, связанную с refresh-токеном."""
+
+    token_hash = hash_refresh_token(token=refresh_token)
+
+    async with AsyncSessionFactory() as session:
+        token_repository = RefreshTokenRepository(session)
+        stored_token = await token_repository.get_refresh_token_by_hash(token_hash)
+        if stored_token is None:
+            return None
+
+        session_repository = AuthSessionRepository(session)
+        auth_session = await session_repository.get_session_by_id(
+            stored_token.session_id, for_update=True
+        )
+        if auth_session is None:
+            return None
+
+        current_time = datetime.now(timezone.utc)
+
+        await session_repository.revoke_session(auth_session.id, current_time)
+        await session.commit()
+        return None

@@ -16,7 +16,7 @@ help:
 	@echo "make up           Запустить все сервисы Compose и дождаться их готовности"
 	@echo "make stop         Остановить контейнеры без удаления"
 	@echo "make down         Остановить и удалить контейнеры, сохранив данные БД"
-	@echo "make run          Запустить API через Gunicorn: http://$(API_HOST):$(API_PORT)/docs"
+	@echo "make run          Запустить приложение: http://$(API_HOST):$(API_PORT)/"
 	@echo "make test         Запустить pytest (БД должна быть запущена)"
 	@echo "make clean        Удалить генерируемые кэши и артефакты Python"
 
@@ -43,6 +43,7 @@ down:
 
 # Локальный запуск FastAPI через ASGI-воркер; Ctrl+C останавливает сервер.
 run:
+	@echo "Личный кабинет: http://$(API_HOST):$(API_PORT)/"
 	@echo "Swagger UI: http://$(API_HOST):$(API_PORT)/docs"
 	DEBUG=false PYTHONPATH=backend $(PYTHON) -m gunicorn app.main:app \
 		--worker-class uvicorn_worker.UvicornWorker \
