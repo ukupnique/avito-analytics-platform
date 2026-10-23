@@ -3,7 +3,7 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from app.core.config import settings
+from app.core.database_url import get_database_url
 from app.models import User
 from app.models.base import Base
 
@@ -11,13 +11,9 @@ from app.models.base import Base
 # access to the values within the .ini file in use.
 config = context.config
 
-config.set_main_option(
-    "sqlalchemy.url",
-    (
-        f"postgresql+psycopg://{settings.postgres_user}:{settings.postgres_password}"
-        f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
-    ),
-)
+database_url = get_database_url("psycopg").render_as_string(hide_password=False)
+# ConfigParser требует экранировать проценты в URL, в том числе внутри пароля.
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

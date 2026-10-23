@@ -1,0 +1,30 @@
+# Приложение и отдельная демобаза. Оба ресурса используют бесплатный тариф.
+services:
+  - type: web
+    name: avito-analytics-demo
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: python -m pip install ./backend
+    startCommand: bash scripts/start_render.sh
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: demo
+      - key: DEBUG
+        value: "false"
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: avito-analytics-demo-db
+          property: connectionString
+
+databases:
+  - name: avito-analytics-demo-db
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: "16"
+    databaseName: avito_analytics_demo
+    user: avito_demo
+    ipAllowList: []

@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     app_env: str = "local"
     debug: bool = True
     project_version: str = "0.1.0"
+    database_url: str | None = None
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_db: str = "avito_analytics"
